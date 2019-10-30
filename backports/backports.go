@@ -27,6 +27,12 @@ const (
 	Any
 )
 
+type ListOpts struct {
+	Since string
+}
+
+var defaultListOpts = ListOpts{Since: time.Now().AddDate(0, 0, -15).Format("2006-01-02")}
+
 // BackportGroup groups backport by PR title
 //
 // Implements sort.Interface
@@ -69,13 +75,14 @@ func searchBackports(opts *github.SearchOptions, query, state string) (BackportG
 // ListGroupedBackports groups backports by PR
 //
 // All the backports from a PR will be added to the same map key
-func ListGroupedBackports(org, team string) (BackportGroup, error) {
-
-	since := time.Now().AddDate(0, 0, -15).Format("2006-01-02")
+func ListGroupedBackports(org, team string, lopts ListOpts) (BackportGroup, error) {
+	if lopts == (ListOpts{}) {
+		lopts = defaultListOpts
+	}
 	opts := &github.SearchOptions{Sort: "created", Order: "asc"}
 	opts.ListOptions.PerPage = 100
 
-	baseQuery := fmt.Sprintf("team:%s/%s created:>=%s is:pr in:title Backport", org, team, since)
+	baseQuery := fmt.Sprintf("team:%s/%s created:>=%s is:pr in:title Backport", org, team, lopts.Since)
 
 	query := fmt.Sprintf("%s is:open", baseQuery)
 	m, err := searchBackports(opts, query, "open")
