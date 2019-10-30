@@ -26,9 +26,12 @@ const (
 	Any
 )
 
-func searchBackports(opts *github.SearchOptions, query, state string) (map[string][]*Backport, error) {
+// BackportGroup groups backport by PR title
+type BackportGroup map[string][]*Backport
+
+func searchBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
 	cl, _ := client.Singleton()
-	groupped := map[string][]*Backport{}
+	groupped := BackportGroup{}
 
 	for {
 		sr, resp, err := cl.Search.Issues(context.Background(), query, opts)
@@ -63,7 +66,8 @@ func searchBackports(opts *github.SearchOptions, query, state string) (map[strin
 // ListGroupedBackports groups backports by PR
 //
 // All the backports from a PR will be added to the same map key
-func ListGroupedBackports(org, team string) (map[string][]*Backport, error) {
+func ListGroupedBackports(org, team string) (BackportGroup, error) {
+
 	since := time.Now().AddDate(0, 0, -15).Format("2006-01-02")
 	opts := &github.SearchOptions{Sort: "created", Order: "asc"}
 	opts.ListOptions.PerPage = 100
@@ -73,9 +77,7 @@ func ListGroupedBackports(org, team string) (map[string][]*Backport, error) {
 	query := fmt.Sprintf("%s is:open", baseQuery)
 	m, err := searchBackports(opts, query, "open")
 
-	query = fmt.Sprintf("%s is:merged", baseQuery)
-	res, err := searchBackports(opts, query, "merged")
-	if err == nil {
+	appendToExisting := func(res BackportGroup) {
 		for k, v := range res {
 			if _, ok := m[k]; ok {
 				m[k] = append(m[k], v...)
@@ -85,16 +87,16 @@ func ListGroupedBackports(org, team string) (map[string][]*Backport, error) {
 		}
 	}
 
+	query = fmt.Sprintf("%s is:merged", baseQuery)
+	res, err := searchBackports(opts, query, "merged")
+	if err == nil {
+		appendToExisting(res)
+	}
+
 	query = fmt.Sprintf("%s is:closed is:unmerged", baseQuery)
 	res, err = searchBackports(opts, query, "closed")
 	if err == nil {
-		for k, v := range res {
-			if _, ok := m[k]; ok {
-				m[k] = append(m[k], v...)
-			} else {
-				m[k] = v
-			}
-		}
+		appendToExisting(res)
 	}
 
 	return m, err
