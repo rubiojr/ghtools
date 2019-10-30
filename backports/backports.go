@@ -17,6 +17,7 @@ type Backport struct {
 	Title        string
 	State        string
 	URL          string
+	IssueNumber  int
 }
 
 // Backport states
@@ -110,7 +111,7 @@ func parseBackport(issue *github.Issue) (*Backport, error) {
 	t := strings.Split(title, ":")
 	ft := strings.Join(t[1:len(t)], ":")
 	if len(t) > 1 {
-		return &Backport{Version: version, VersionTitle: title, State: state, Title: ft, URL: *issue.HTMLURL}, nil
+		return &Backport{Version: version, VersionTitle: title, State: state, Title: ft, URL: *issue.HTMLURL, IssueNumber: *issue.Number}, nil
 	} else {
 		return nil, fmt.Errorf("Error parsing backport %s", title)
 	}
