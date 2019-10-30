@@ -84,7 +84,7 @@ func ListGroupedBackports(org, team string, lopts ListOpts) (BackportGroup, erro
 	opts := &github.SearchOptions{Sort: "created", Order: "asc"}
 	opts.ListOptions.PerPage = 100
 
-	baseQuery := fmt.Sprintf("team:%s/%s created:>=%s is:pr in:title Backport", org, team, lopts.Since)
+	baseQuery := fmt.Sprintf("org:%s team:%s/%s created:>=%s is:pr in:title Backport", org, org, team, lopts.Since)
 
 	query := fmt.Sprintf("%s is:open", baseQuery)
 	m, err := searchBackports(opts, query, "open")
@@ -119,7 +119,9 @@ func parseBackport(issue *github.Issue) (*Backport, error) {
 	title := *issue.Title
 	tokens := strings.Split(title, " ")
 	parentVersion := tokens[1]
-	parentURL := *issue.RepositoryURL + "/pull/" + parentVersion
+	repoUrlTokens := strings.Split(issue.GetRepositoryURL(), "/")
+	nwo := fmt.Sprintf("%s/%s", repoUrlTokens[len(repoUrlTokens)-2], repoUrlTokens[len(repoUrlTokens)-1])
+	parentURL := fmt.Sprintf("https://github.com/%s/pull/%s", nwo, parentVersion)
 	version := strings.Trim(tokens[3], ":")
 	t := strings.Split(title, ":")
 	ft := strings.TrimSpace(strings.Join(t[1:len(t)], ":"))
