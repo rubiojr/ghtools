@@ -28,6 +28,8 @@ const (
 )
 
 // BackportGroup groups backport by PR title
+//
+// Implements sort.Interface
 type BackportGroup map[string][]*Backport
 
 func searchBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
