@@ -12,12 +12,14 @@ import (
 
 // Backport represents a backported PR
 type Backport struct {
-	Version      string
-	VersionTitle string
-	Title        string
-	State        string
-	URL          string
-	IssueNumber  int
+	Version       string
+	VersionTitle  string
+	Title         string
+	State         string
+	URL           string
+	IssueNumber   int
+	ParentVersion string
+	ParentURL     string
 }
 
 // Backport states
@@ -116,11 +118,13 @@ func parseBackport(issue *github.Issue) (*Backport, error) {
 	state := *issue.State
 	title := *issue.Title
 	tokens := strings.Split(title, " ")
+	parentVersion := tokens[1]
+	parentURL := *issue.RepositoryURL + "/pull/" + parentVersion
 	version := strings.Trim(tokens[3], ":")
 	t := strings.Split(title, ":")
-	ft := strings.Join(t[1:len(t)], ":")
+	ft := strings.TrimSpace(strings.Join(t[1:len(t)], ":"))
 	if len(t) > 1 {
-		return &Backport{Version: version, VersionTitle: title, State: state, Title: ft, URL: *issue.HTMLURL, IssueNumber: *issue.Number}, nil
+		return &Backport{ParentURL: parentURL, ParentVersion: parentVersion, Version: version, VersionTitle: title, State: state, Title: ft, URL: *issue.HTMLURL, IssueNumber: *issue.Number}, nil
 	} else {
 		return nil, fmt.Errorf("Error parsing backport %s", title)
 	}

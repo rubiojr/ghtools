@@ -15,7 +15,7 @@ func main() {
 		panic(err)
 	}
 	for k, v := range res {
-		fmt.Printf("%s\n", k)
+		fmt.Printf("%s (%s)\n", k, v[0].ParentURL)
 		for _, issue := range v {
 			if issue.State == "closed" {
 				fmt.Printf("  🔴  %s: %s\n", issue.Version, issue.URL)
