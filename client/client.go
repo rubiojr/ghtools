@@ -28,6 +28,9 @@ var ghcOnce sync.Once
 //
 //   security add-generic-password -a github -s GITHUB_TOKEN -w
 //
+// To add the token to GNOME keyring use "secret-tool":
+//
+//   secret-tool store --label="GitHub Token" service GITHUB_TOKEN username github
 func Singleton() (*github.Client, error) {
 	var err error
 
