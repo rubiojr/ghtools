@@ -44,40 +44,6 @@ var defaultListOpts = ListOpts{
 // BackportGroup groups backport by PR title
 type BackportGroup map[string][]*Backport
 
-func searchGroupBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
-	cl, _ := client.Singleton()
-	groupped := BackportGroup{}
-
-	for {
-		sr, resp, err := cl.Search.Issues(context.Background(), query, opts)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, issue := range sr.Issues {
-			if b, err := parseBackport(&issue); err == nil {
-				if b.State == "closed" {
-					b.State = state
-				}
-				if _, ok := groupped[b.Title]; ok {
-					groupped[b.Title] = append(groupped[b.Title], b)
-				} else {
-					groupped[b.Title] = []*Backport{b}
-				}
-			} else {
-				return nil, err
-			}
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
-	}
-
-	return groupped, nil
-}
-
 // ListStale lists backports older than X days (15 by default)
 //
 // Configure the time threshold passing a ListOpts argument like:
@@ -198,4 +164,38 @@ func searchBackports(opts *github.SearchOptions, query string) ([]*Backport, err
 	}
 
 	return list, nil
+}
+
+func searchGroupBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
+	cl, _ := client.Singleton()
+	groupped := BackportGroup{}
+
+	for {
+		sr, resp, err := cl.Search.Issues(context.Background(), query, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, issue := range sr.Issues {
+			if b, err := parseBackport(&issue); err == nil {
+				if b.State == "closed" {
+					b.State = state
+				}
+				if _, ok := groupped[b.Title]; ok {
+					groupped[b.Title] = append(groupped[b.Title], b)
+				} else {
+					groupped[b.Title] = []*Backport{b}
+				}
+			} else {
+				return nil, err
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return groupped, nil
 }
