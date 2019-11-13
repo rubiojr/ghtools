@@ -20,6 +20,7 @@ type Backport struct {
 	IssueNumber   int
 	ParentVersion string
 	ParentURL     string
+	CreatedAt     time.Time
 }
 
 // Backport states
@@ -29,16 +30,21 @@ const (
 	Any
 )
 
+// ListOpts are options passed to the different list functions
 type ListOpts struct {
-	Since string
+	Since     string // Date string formatted as Year-Month-Day (2006-01-02)
+	OlderThan int    // List issues/PRs older than this (days)
 }
 
-var defaultListOpts = ListOpts{Since: time.Now().AddDate(0, 0, -15).Format("2006-01-02")}
+var defaultListOpts = ListOpts{
+	Since:     time.Now().AddDate(0, 0, -15).Format("2006-01-02"),
+	OlderThan: 30,
+}
 
 // BackportGroup groups backport by PR title
 type BackportGroup map[string][]*Backport
 
-func searchBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
+func searchGroupBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
 	cl, _ := client.Singleton()
 	groupped := BackportGroup{}
 
@@ -72,6 +78,30 @@ func searchBackports(opts *github.SearchOptions, query, state string) (BackportG
 	return groupped, nil
 }
 
+// ListStale lists backports older than X days (15 by default)
+//
+// Configure the time threshold passing a ListOpts argument like:
+//
+//     ListStale("fooorg", "barteam", ListOpts{OlderThan: 60})
+//
+func ListStale(org, team string, lopts ListOpts) ([]*Backport, error) {
+	if lopts == (ListOpts{}) {
+		lopts = defaultListOpts
+	}
+	opts := &github.SearchOptions{Sort: "created", Order: "desc"}
+	opts.ListOptions.PerPage = 100
+
+	createdBefore := time.Now().AddDate(0, 0, -lopts.OlderThan).Format("2006-01-02")
+	baseQuery := fmt.Sprintf(
+		"org:%s team:%s/%s is:open created:<=%s is:pr in:title Backport",
+		org, org, team, createdBefore,
+	)
+
+	list, err := searchBackports(opts, baseQuery)
+
+	return list, err
+}
+
 // ListGroupedBackports groups backports by PR
 //
 // All the backports from a PR will be added to the same map key
@@ -95,19 +125,19 @@ func ListGroupedBackports(org, team string, lopts ListOpts) (BackportGroup, erro
 		}
 	}
 
-	res, err := searchBackports(opts, fmt.Sprintf("%s is:open", baseQuery), "open")
+	res, err := searchGroupBackports(opts, fmt.Sprintf("%s is:open", baseQuery), "open")
 	if err != nil {
 		return nil, err
 	}
 	appendToExisting(res)
 
-	res, err = searchBackports(opts, fmt.Sprintf("%s is:merged", baseQuery), "merged")
+	res, err = searchGroupBackports(opts, fmt.Sprintf("%s is:merged", baseQuery), "merged")
 	if err != nil {
 		return nil, err
 	}
 	appendToExisting(res)
 
-	res, err = searchBackports(opts, fmt.Sprintf("%s is:closed is:unmerged", baseQuery), "closed")
+	res, err = searchGroupBackports(opts, fmt.Sprintf("%s is:closed is:unmerged", baseQuery), "closed")
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +158,44 @@ func parseBackport(issue *github.Issue) (*Backport, error) {
 	t := strings.Split(title, ":")
 	ft := strings.TrimSpace(strings.Join(t[1:len(t)], ":"))
 	if len(t) > 1 {
-		return &Backport{ParentURL: parentURL, ParentVersion: parentVersion, Version: version, VersionTitle: title, State: state, Title: ft, URL: *issue.HTMLURL, IssueNumber: *issue.Number}, nil
+		return &Backport{
+			ParentURL:     parentURL,
+			ParentVersion: parentVersion,
+			Version:       version,
+			VersionTitle:  title,
+			State:         state,
+			Title:         ft,
+			URL:           *issue.HTMLURL,
+			IssueNumber:   *issue.Number,
+			CreatedAt:     *issue.CreatedAt}, nil
 	} else {
 		return nil, fmt.Errorf("Error parsing backport %s", title)
 	}
+}
+
+func searchBackports(opts *github.SearchOptions, query string) ([]*Backport, error) {
+	cl, _ := client.Singleton()
+	list := []*Backport{}
+
+	for {
+		sr, resp, err := cl.Search.Issues(context.Background(), query, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, issue := range sr.Issues {
+			if b, err := parseBackport(&issue); err == nil {
+				list = append(list, b)
+			} else {
+				return nil, err
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return list, nil
 }
