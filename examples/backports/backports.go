@@ -10,7 +10,7 @@ import (
 func main() {
 	// 15 days ago
 	opts := backports.ListOpts{Since: time.Now().AddDate(0, 0, -15).Format("2006-01-02")}
-	res, err := backports.ListGroupedBackports("orgbar", "teamfoo", opts)
+	res, err := backports.ListGrouped("orgbar", "teamfoo", opts)
 	if err != nil {
 		panic(err)
 	}

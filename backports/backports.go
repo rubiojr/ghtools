@@ -68,10 +68,10 @@ func ListStale(org, team string, lopts ListOpts) ([]*Backport, error) {
 	return list, err
 }
 
-// ListGroupedBackports groups backports by PR
+// ListGrouped groups backports by PR
 //
 // All the backports from a PR will be added to the same map key
-func ListGroupedBackports(org, team string, lopts ListOpts) (BackportGroup, error) {
+func ListGrouped(org, team string, lopts ListOpts) (BackportGroup, error) {
 	if lopts == (ListOpts{}) {
 		lopts = defaultListOpts
 	}
