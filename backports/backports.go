@@ -36,8 +36,6 @@ type ListOpts struct {
 var defaultListOpts = ListOpts{Since: time.Now().AddDate(0, 0, -15).Format("2006-01-02")}
 
 // BackportGroup groups backport by PR title
-//
-// Implements sort.Interface
 type BackportGroup map[string][]*Backport
 
 func searchBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
@@ -86,9 +84,7 @@ func ListGroupedBackports(org, team string, lopts ListOpts) (BackportGroup, erro
 
 	baseQuery := fmt.Sprintf("org:%s team:%s/%s created:>=%s is:pr in:title Backport", org, org, team, lopts.Since)
 
-	query := fmt.Sprintf("%s is:open", baseQuery)
-	m, err := searchBackports(opts, query, "open")
-
+	m := BackportGroup{}
 	appendToExisting := func(res BackportGroup) {
 		for k, v := range res {
 			if _, ok := m[k]; ok {
@@ -99,19 +95,25 @@ func ListGroupedBackports(org, team string, lopts ListOpts) (BackportGroup, erro
 		}
 	}
 
-	query = fmt.Sprintf("%s is:merged", baseQuery)
-	res, err := searchBackports(opts, query, "merged")
-	if err == nil {
-		appendToExisting(res)
+	res, err := searchBackports(opts, fmt.Sprintf("%s is:open", baseQuery), "open")
+	if err != nil {
+		return nil, err
 	}
+	appendToExisting(res)
 
-	query = fmt.Sprintf("%s is:closed is:unmerged", baseQuery)
-	res, err = searchBackports(opts, query, "closed")
-	if err == nil {
-		appendToExisting(res)
+	res, err = searchBackports(opts, fmt.Sprintf("%s is:merged", baseQuery), "merged")
+	if err != nil {
+		return nil, err
 	}
+	appendToExisting(res)
 
-	return m, err
+	res, err = searchBackports(opts, fmt.Sprintf("%s is:closed is:unmerged", baseQuery), "closed")
+	if err != nil {
+		return nil, err
+	}
+	appendToExisting(res)
+
+	return m, nil
 }
 
 func parseBackport(issue *github.Issue) (*Backport, error) {
