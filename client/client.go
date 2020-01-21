@@ -3,6 +3,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -37,17 +38,27 @@ func Singleton() (*github.Client, error) {
 	ghcOnce.Do(func() {
 		creds := os.Getenv("GITHUB_TOKEN")
 		if creds != "" {
-			ghcInstance = newGHClientFromToken(creds)
+			ghcInstance, err = newGHClientFromToken(creds)
 		} else {
 			creds, err = keyring.Get("GITHUB_TOKEN", "github")
-			ghcInstance = newGHClientFromToken(creds)
+			if err != nil {
+				err = fmt.Errorf("GitHub token not found in keyring. E: %v", err)
+			} else {
+				ghcInstance, err = newGHClientFromToken(creds)
+			}
 		}
 	})
 
+	if err != nil {
+		ghcInstance = nil
+	}
 	return ghcInstance, err
 }
 
-func newGHClientFromToken(token string) *github.Client {
+func newGHClientFromToken(token string) (*github.Client, error) {
+	if token == "" {
+		return nil, fmt.Errorf("GitHub token can't be empty")
+	}
 	ctx := context.Background()
 
 	ts := oauth2.StaticTokenSource(
@@ -55,7 +66,7 @@ func newGHClientFromToken(token string) *github.Client {
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
-	return github.NewClient(tc)
+	return github.NewClient(tc), nil
 }
 
 func newGHClientFromFile(creds string) *github.Client {

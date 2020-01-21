@@ -167,7 +167,11 @@ func searchBackports(opts *github.SearchOptions, query string) ([]*Backport, err
 }
 
 func searchGroupBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
-	cl, _ := client.Singleton()
+	cl, err := client.Singleton()
+	if err != nil {
+		return nil, err
+	}
+
 	groupped := BackportGroup{}
 
 	for {
