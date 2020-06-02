@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/google/go-github/github"
-	"github.com/rubiojr/ghtools/client"
+	"github.com/rubiojr/go/github/client"
 )
+
+const cacheURL = "lru:"
 
 // Backport represents a backported PR
 type Backport struct {
@@ -140,7 +142,7 @@ func parseBackport(issue *github.Issue) (*Backport, error) {
 }
 
 func searchBackports(opts *github.SearchOptions, query string) ([]*Backport, error) {
-	cl, _ := client.Singleton()
+	cl, _ := client.CachingSingleton(cacheURL)
 	list := []*Backport{}
 
 	for {
@@ -167,7 +169,7 @@ func searchBackports(opts *github.SearchOptions, query string) ([]*Backport, err
 }
 
 func searchGroupBackports(opts *github.SearchOptions, query, state string) (BackportGroup, error) {
-	cl, err := client.Singleton()
+	cl, err := client.CachingSingleton(cacheURL)
 	if err != nil {
 		return nil, err
 	}
